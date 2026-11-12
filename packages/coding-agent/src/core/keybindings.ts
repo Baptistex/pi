@@ -68,6 +68,10 @@ const APP_KEYBINDINGS = {
 		defaultKeys: windowsKeybindings ? "ctrl+q" : "alt+enter",
 		description: "Queue follow-up message",
 	},
+	"app.message.steer": {
+		defaultKeys: "enter",
+		description: "Steer the currently running agent",
+	},
 	"app.message.dequeue": {
 		defaultKeys: windowsKeybindings ? "alt+q" : "alt+up",
 		description: "Restore queued messages",
@@ -243,6 +247,7 @@ const KEYBINDING_NAME_MIGRATIONS = {
 	toggleSessionNamedFilter: "app.session.toggleNamedFilter",
 	externalEditor: "app.editor.external",
 	followUp: "app.message.followUp",
+	steer: "app.message.steer",
 	dequeue: "app.message.dequeue",
 	pasteImage: "app.clipboard.pasteImage",
 	newSession: "app.session.new",

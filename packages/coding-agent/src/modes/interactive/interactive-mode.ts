@@ -3239,6 +3239,7 @@ export class InteractiveMode {
 			() => void this.handleCopyCommand({ flashConfirmation: true, preferSelection: true }),
 		);
 		this.defaultEditor.onAction("app.message.followUp", () => this.handleFollowUp());
+		this.defaultEditor.onAction("app.message.steer", () => this.handleSteer());
 		this.defaultEditor.onAction("app.message.dequeue", () => this.handleDequeue());
 		this.defaultEditor.onAction("app.session.new", () => this.handleClearCommand());
 		this.defaultEditor.onAction("app.session.tree", () => this.showTreeSelector());
@@ -3486,27 +3487,11 @@ export class InteractiveMode {
 				}
 			}
 
-			// Queue input during compaction (extension commands execute immediately)
-			if (this.session.isCompacting) {
-				if (this.isExtensionCommand(text)) {
-					this.editor.addToHistory?.(text);
-					this.editor.setText("");
-					await this.session.prompt(text);
-				} else {
-					this.queueCompactionMessage(text, "steer");
-				}
-				return;
-			}
-
-			// If streaming, use prompt() with steer behavior
-			// This handles extension commands (execute immediately), prompt template expansion, and queueing
-			if (this.session.isStreaming) {
-				this.editor.addToHistory?.(text);
-				this.editor.setText("");
-				await this.session.prompt(text, { streamingBehavior: "steer" });
-				this.updatePendingMessagesDisplay();
-				this.ui.requestRender();
-				return;
+			// Do not implicitly steer while the agent is running.
+			if (this.session.isStreaming || this.session.isCompacting) {
+				const steer = this.getAppKeyDisplay("app.message.steer");
+				const followUp = this.getAppKeyDisplay("app.message.followUp");
+				this.showStatus(`Agent is busy. Enter the steer (${steer}) or follow-up (${followUp}) keybinding`);
 			}
 
 			// Normal message submission
@@ -4682,6 +4667,39 @@ export class InteractiveMode {
 			this.ui.requestRender();
 		}
 		// If not streaming, Alt+Enter acts like regular Enter (trigger onSubmit)
+		else if (this.editor.onSubmit) {
+			this.editor.setText("");
+			this.editor.onSubmit(text);
+		}
+	}
+
+	private async handleSteer(): Promise<void> {
+		const text = (this.editor.getExpandedText?.() ?? this.editor.getText()).trim();
+		if (!text) return;
+
+		// Queue input during compaction (extension commands execute immediately)
+		if (this.session.isCompacting) {
+			if (this.isExtensionCommand(text)) {
+				this.editor.addToHistory?.(text);
+				this.editor.setText("");
+				await this.session.prompt(text);
+			} else {
+				this.queueCompactionMessage(text, "steer");
+			}
+			return;
+		}
+
+		// If streaming, use prompt() with steer behavior
+		// This handles extension commands (execute immediately), prompt template expansion, and queueing
+		if (this.session.isStreaming) {
+			this.editor.addToHistory?.(text);
+			this.editor.setText("");
+			await this.session.prompt(text, { streamingBehavior: "steer" });
+			this.updatePendingMessagesDisplay();
+			this.ui.requestRender();
+			return;
+		}
+		// If not streaming, steer acts like regular Enter (trigger onSubmit)
 		else if (this.editor.onSubmit) {
 			this.editor.setText("");
 			this.editor.onSubmit(text);
@@ -7038,6 +7056,7 @@ export class InteractiveMode {
 		const cycleModelBackward = this.getAppKeyDisplay("app.model.cycleBackward");
 		const copyMessage = this.getAppKeyDisplay("app.message.copy");
 		const followUp = this.getAppKeyDisplay("app.message.followUp");
+		const steer = this.getAppKeyDisplay("app.message.steer");
 		const dequeue = this.getAppKeyDisplay("app.message.dequeue");
 		const pasteImage = this.getAppKeyDisplay("app.clipboard.pasteImage");
 
@@ -7082,6 +7101,7 @@ export class InteractiveMode {
 | \`${externalEditor}\` | Edit message in external editor |
 | \`${copyMessage}\` | Copy selection or last assistant message |
 | \`${followUp}\` | Queue follow-up message |
+| \`${steer}\` | Queue follow-up message |
 | \`${dequeue}\` | Restore queued messages |
 | \`${pasteImage}\` | Paste files on macOS, images, or text from clipboard |
 | \`/\` | Slash commands |
